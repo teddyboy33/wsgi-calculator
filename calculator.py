@@ -42,16 +42,53 @@ To submit your homework:
 """
 
 
+def home():
+    """ Returns as STRING describing how to use the calculator """
+    body = """
+<h1>Simple Calculator</h1>
+<p>To use this calculator simply append one of the following calculations to the end of the URL:</p>
+<ul>
+    <li>add</li>
+    <li>subtract</li>
+    <li>multiply</li>
+    <li>divide</li>
+</ul>
+<p>Follow the calculation argument by the two arguments to be calculated.<br>
+Be sure to input a '/' between each argument<br><br>
+Example: localhost:8080/add/4/5</p>
+"""
+    return body
+
+
 def add(*args):
     """ Returns a STRING with the sum of the arguments """
 
     # TODO: Fill sum with the correct value, based on the
     # args provided.
-    sum = "0"
 
-    return sum
+    sum = int(args[0]) + int(args[1])
+    return str(sum)
 
 # TODO: Add functions for handling more arithmetic operations.
+
+
+def subtract(*args):
+    """ Returns a STRING with the difference of the arguments """
+    difference = int(args[0]) - int(args[1])
+    return str(difference)
+
+
+def multiply(*args):
+    """ Returns a STRING with the product of the arguments """
+    product = int(args[0]) * int(args[1])
+    return str(product)
+
+
+def divide(*args):
+    """ Returns a STRING with the quotient of the arguments """
+    quotient = int(args[0]) / int(args[1])
+    return str(quotient)
+
 
 def resolve_path(path):
     """
@@ -63,10 +100,27 @@ def resolve_path(path):
     # examples provide the correct *syntax*, but you should
     # determine the actual values of func and args using the
     # path.
-    func = add
-    args = ['25', '32']
+    funcs = {'': home,
+             'add': add,
+             'subtract': subtract,
+             'multiply': multiply,
+             'divide': divide
+             }
+
+    path = path.strip('/').split('/')
+
+    func_name = path[0]
+    args = path[1:]
+    if len(args) != 2 and func_name != '':
+        raise IndexError
+
+    try:
+        func = funcs[func_name]
+    except KeyError:
+        raise NameError
 
     return func, args
+
 
 def application(environ, start_response):
     # TODO: Your application code from the book database
@@ -76,9 +130,34 @@ def application(environ, start_response):
     #
     # TODO (bonus): Add error handling for a user attempting
     # to divide by zero.
-    pass
+    headers = [('Content-type', 'text/html')]
+
+    try:
+        path = environ.get('PATH_INFO', None)
+        if path is None:
+            raise NameError
+        func, args = resolve_path(path)
+        body = func(*args)
+        status = "200 OK"
+    except NameError:
+        status = "404 Not Found"
+        body = "<h1>404 Not Found</h1>"
+    except IndexError:
+        status = "500 Internal Server Error"
+        body = "<h1>500 Internal Server Error</h1><p>Must have two and only two arguments</p>"
+    except Exception as e:
+        status = "500 Internal Server Error"
+        body = "<h1>500 Internal Server Error</h1>"
+
+    finally:
+        headers.append(('Content-length', str(len(body))))
+        start_response(status, headers)
+    return [body.encode('utf8')]
+
 
 if __name__ == '__main__':
     # TODO: Insert the same boilerplate wsgiref simple
     # server creation that you used in the book database.
-    pass
+    from wsgiref.simple_server import make_server
+    srv = make_server('localhost', 8080, application)
+    srv.serve_forever()
